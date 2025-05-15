@@ -118,7 +118,7 @@ opcode! {
 
         let mut sqe = sqe_zeroed();
         sqe.opcode = Self::CODE;
-        sqe.__bindgen_anon_2.addr = req;
+        sqe.__bindgen_anon_2.addr = (&req as *const PengReq) as u64;
         Entry(sqe)
     }
 }
