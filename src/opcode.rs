@@ -101,6 +101,29 @@ fn sqe_zeroed() -> sys::io_uring_sqe {
 }
 
 opcode! {
+    #[derive(Debug)]
+    pub struct Pengpush {
+        // PengReq is not a real type (yet)
+        req: { PengReq }
+        ;;
+    }
+
+    // Does not yet exist
+    pub const CODE = sys::IORING_OP_PENGPUSH;
+
+    pub fn build(self) -> Entry {
+        let Pengpush {
+            req
+        } = self;
+
+        let mut sqe = sqe_zeroed();
+        sqe.opcode = Self::CODE;
+        sqe.__bindgen_anon_2.addr = req;
+        Entry(sqe)
+    }
+}
+
+opcode! {
     /// Do not perform any I/O.
     ///
     /// This is useful for testing the performance of the io_uring implementation itself.
