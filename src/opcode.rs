@@ -100,16 +100,25 @@ fn sqe_zeroed() -> sys::io_uring_sqe {
     unsafe { mem::zeroed() }
 }
 
+/// Example Peng Request structure
+#[derive(Debug)]
+pub struct PengReq {
+    pg_cmd: u64,
+    // COHORT_MAX_ARGS not defined.
+    args: [u64; COHORT_MAX_ARGS],
+    retval: i32,
+}
+
 opcode! {
     #[derive(Debug)]
     pub struct Pengpush {
-        // PengReq is not a real type (yet)
+        // There is no "official" PengReq structure, the best I could find is above.
         req: { PengReq }
         ;;
     }
 
-    // Does not yet exist
-    pub const CODE = sys::IORING_OP_PENGPUSH;
+    // IORING_OP_PENGPUSH not defined.
+    pub const CODE = IORING_OP_PENGPUSH;
 
     pub fn build(self) -> Entry {
         let Pengpush {
