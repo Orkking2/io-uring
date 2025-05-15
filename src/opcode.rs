@@ -100,11 +100,38 @@ fn sqe_zeroed() -> sys::io_uring_sqe {
     unsafe { mem::zeroed() }
 }
 
-/// Example Peng Request structure
+/* From Michael's io_uring.h
+
+#define COHORT_MAX_ARGS     8
+enum {
+    RV_CONF_IOMMU           = 0x01,
+    RV_CONF_IOMMU_EXIT      = 0x02,
+    PENG_OP_LAST
+};
+
+
+struct peng_req{
+    unsigned long pg_cmd;
+    unsigned long args[COHORT_MAX_ARGS];
+    int retval;
+};
+
+*/
+
+pub static COHORT_MAX_ARGS: usize = 8;
+
+#[derive(Debug)]
+#[repr(u64)]
+#[allow(non_camel_case_types)]
+pub enum PgCmd {
+    RV_CONF_IOMMU           = 0x01,
+    RV_CONF_IOMMU_EXIT      = 0x02,
+    PENG_OP_LAST
+}
+
 #[derive(Debug)]
 pub struct PengReq {
-    pg_cmd: u64,
-    // COHORT_MAX_ARGS not defined.
+    pg_cmd: PgCmd,
     args: [u64; COHORT_MAX_ARGS],
     retval: i32,
 }
@@ -112,7 +139,6 @@ pub struct PengReq {
 opcode! {
     #[derive(Debug)]
     pub struct Pengpush {
-        // There is no "official" PengReq structure, the best I could find is above.
         req: { PengReq }
         ;;
     }
