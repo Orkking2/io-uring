@@ -120,6 +120,7 @@ struct peng_req{
 
 pub static COHORT_MAX_ARGS: usize = 8;
 
+#[rustfmt::skip]
 #[derive(Debug)]
 #[repr(u64)]
 #[allow(non_camel_case_types)]

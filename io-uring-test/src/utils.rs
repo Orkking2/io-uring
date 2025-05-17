@@ -1,4 +1,7 @@
-use io_uring::{cqueue::{self, EntryMarker}, opcode, squeue, types, IoUring};
+use io_uring::{
+    cqueue::{self, EntryMarker},
+    opcode, squeue, types, IoUring,
+};
 use std::io::{IoSlice, IoSliceMut};
 
 macro_rules! require {
