@@ -25,6 +25,7 @@ io_safety = []
 [dependencies]
 bitflags = "2"
 cfg-if = "1"
+cohort = { git = "https://github.com/Orkking2/Cohort.git", branch = "josh-dev"}
 
 libc = { version = "0.2.98", default-features = false }
 sc = { version = "0.2", optional = true }

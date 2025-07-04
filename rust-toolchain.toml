@@ -1,0 +1,3 @@
+[toolchain]
+versioned = "1.78.0"
+targets = ["riscv64gc-unknown-linux-gnu"]

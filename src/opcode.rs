@@ -4,7 +4,10 @@
 
 use std::convert::TryInto;
 use std::mem;
+use std::mem::ManuallyDrop;
 use std::os::unix::io::RawFd;
+
+use cohort::{Cohort, BACKOFF_COUNTER_VAL};
 
 use crate::squeue::Entry;
 use crate::squeue::Entry128;
@@ -109,8 +112,7 @@ enum {
     PENG_OP_LAST
 };
 
-
-struct peng_req{
+struct peng_req {
     unsigned long pg_cmd;
     unsigned long args[COHORT_MAX_ARGS];
     int retval;
@@ -118,43 +120,88 @@ struct peng_req{
 
 */
 
-pub static COHORT_MAX_ARGS: usize = 8;
+pub const COHORT_MAX_ARGS: usize = 8;
 
-#[rustfmt::skip]
 #[derive(Debug)]
-#[repr(u64)]
-#[allow(non_camel_case_types)]
+#[repr(u32)]
 pub enum PgCmd {
-    RV_CONF_IOMMU           = 0x01,
-    RV_CONF_IOMMU_EXIT      = 0x02,
-    PENG_OP_LAST
+    /// IOMMU configuration
+    RvConfIOMMU = 0x01,
+    /// IOMMU exit
+    RvConfIOMMUExit = 0x02,
+    PengOpLast
 }
 
 #[derive(Debug)]
+#[repr(C)]
 pub struct PengReq {
-    pg_cmd: PgCmd,
-    args: [u64; COHORT_MAX_ARGS],
-    retval: i32,
+    pub cmd: PgCmd,
+    pub args: [u64; COHORT_MAX_ARGS],
+    pub retval: i32,
 }
 
-opcode! {
-    #[derive(Debug)]
-    pub struct Pengpush {
-        req: { PengReq }
-        ;;
+pub struct PengPush {
+    req: PengReq,
+}
+
+impl PengPush {
+    /// # Safety
+    /// 
+    /// The caller must ensure that the id is not already in use.
+    pub unsafe fn register_new<T: Copy + std::fmt::Debug>(id: u8, capacity: usize, batch_size: usize) -> (Pin<Box<Cohort<T>>>, Self) {
+        let cohort = Cohort::<T>::new(id, capacity, batch_size);
+        let entry = Self::register(&cohort);
+        (cohort, entry)
     }
 
-    // IORING_OP_PENGPUSH not defined.
-    pub const CODE = IORING_OP_PENGPUSH;
+    pub fn register<T: Copy + std::fmt::Debug>(cohort: &Cohort<T>) -> Self {
+        let req = PengReq {
+            cmd: PgCmd::RvConfIOMMU,
+            args: [
+                cohort.sender(),
+                cohort.receiver(),
+                cohort.custom_data().0,
+                BACKOFF_COUNTER_VAL,
+            ],
+            retval: 0,
+        };
+
+        Self { req }
+    }
+
+    /// # Safety
+    /// 
+    /// The caller must ensure that this Entry is submitted to an io_uring
+    /// else the memory of the `Cohort` object will be leaked.
+    pub unsafe fn unregister<T: Copy + std::fmt::Debug>(cohort: Cohort<T>) -> Self {
+        // Stop the regular cohort drop code from running.
+        // The regular drop code synchronously calls a syscall, we do not want that happening.
+        // This is what makes this function unsafe, 
+        // as it cannot guarantee that the cohort will be unregistered (freed) properly.
+        let _ = ManuallyDrop::new(cohort);
+
+        let req = PengReq {
+            cmd: PgCmd::RvConfIOMMUExit,
+            args: [
+                cohort.sender(),
+                cohort.receiver(),
+                cohort.custom_data().0,
+                BACKOFF_COUNTER_VAL,
+            ],
+            retval: 0,
+        };
+
+        Self { req }
+    }
 
     pub fn build(self) -> Entry {
-        let Pengpush {
-            req
-        } = self;
+        let PengPush { req } = self;
 
         let mut sqe = sqe_zeroed();
         sqe.opcode = Self::CODE;
-        sqe.__bindgen_anon_2.addr = (&req as *const PengReq) as u64;
+        sqe.fd = -1; // No file descriptor needed for this operation
+        sqe.__bindgen_anon_2.addr = &req as *const _ as u64; // Pointer to the PengReq
+        sqe.len = mem::size_of::<PengReq>() as u32; // Size of the PengReq structure
         Entry(sqe)
     }
 }

@@ -276,12 +276,12 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
     /// Developers must ensure that parameters of the entry (such as buffer) are valid and will
     /// be valid for the entire duration of the operation, otherwise it may cause memory problems.
     #[inline]
-    pub unsafe fn push(&mut self, entry: E) -> Result<(), PushError> {
+    pub unsafe fn push(&mut self, entry: E) -> Result<(), E> {
         if !self.is_full() {
             self.push_unchecked(entry);
             Ok(())
         } else {
-            Err(PushError)
+            Err(entry)
         }
     }
 
@@ -294,7 +294,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
     /// will be valid for the entire duration of the operation, otherwise it may cause memory
     /// problems.
     #[inline]
-    pub unsafe fn push_multiple<T, I>(&mut self, entries: T) -> Result<(), PushError>
+    pub unsafe fn push_multiple<T, I>(&mut self, entries: T) -> Result<(), T>
     where
         I: ExactSizeIterator<Item = E>,
         T: IntoIterator<IntoIter = I>,
@@ -302,7 +302,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
         let iter = entries.into_iter();
 
         if self.capacity() - self.len() < iter.len() {
-            return Err(PushError);
+            return Err(entries);
         }
 
         for entry in iter {
@@ -450,31 +450,5 @@ impl Debug for Entry128 {
             .field("flags", &self.0 .0.flags)
             .field("user_data", &self.0 .0.user_data)
             .finish()
-    }
-}
-
-/// An error pushing to the submission queue due to it being full.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct PushError;
-
-impl Display for PushError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str("submission queue is full")
-    }
-}
-
-impl Error for PushError {}
-
-impl<E: EntryMarker> Debug for SubmissionQueue<'_, E> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut d = f.debug_list();
-        let mut pos = self.head;
-        while pos != self.tail {
-            let entry: &E = unsafe { &*self.queue.sqes.add((pos & self.queue.ring_mask) as usize) };
-            d.entry(&entry);
-            pos = pos.wrapping_add(1);
-        }
-        d.finish()
     }
 }
