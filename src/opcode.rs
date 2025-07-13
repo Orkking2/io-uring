@@ -120,6 +120,7 @@ struct peng_req {
 
 */
 
+/* Not yet stable
 pub const COHORT_MAX_ARGS: usize = 8;
 
 #[derive(Debug)]
@@ -205,6 +206,7 @@ impl PengPush {
         Entry(sqe)
     }
 }
+*/
 
 opcode! {
     /// Do not perform any I/O.
