@@ -269,7 +269,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
     }
 
     /// Attempts to push an entry into the queue.
-    /// If the queue is full, an error is returned.
+    /// If the queue is full, the entry is returned.
     ///
     /// # Safety
     ///
@@ -286,7 +286,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
     }
 
     /// Attempts to push several entries into the queue.
-    /// If the queue does not have space for all of the entries, an error is returned.
+    /// If the queue does not have space for all of the entries, the entries are returned.
     ///
     /// # Safety
     ///
@@ -294,7 +294,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
     /// will be valid for the entire duration of the operation, otherwise it may cause memory
     /// problems.
     #[inline]
-    pub unsafe fn push_multiple<T, I>(&mut self, entries: T) -> Result<(), T>
+    pub unsafe fn push_multiple<T, I>(&mut self, entries: T) -> Result<(), I>
     where
         I: ExactSizeIterator<Item = E>,
         T: IntoIterator<IntoIter = I>,
@@ -302,7 +302,7 @@ impl<E: EntryMarker> SubmissionQueue<'_, E> {
         let iter = entries.into_iter();
 
         if self.capacity() - self.len() < iter.len() {
-            return Err(entries);
+            return Err(iter);
         }
 
         for entry in iter {
